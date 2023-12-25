@@ -145,7 +145,7 @@ export default {
       return this.element.serviceName === 'textSelectWidget' && this.element.options.attrs.selectFirst
     },
     showRequiredTips() {
-      return this.inDraw && this.element.options.attrs.required && !this.value
+      return this.inDraw && this.element.options.attrs.required && (!this.value || this.value.length === 0)
     }
   },
 
@@ -276,6 +276,9 @@ export default {
     bus.$off('reset-default-value', this.resetDefaultValue)
   },
   methods: {
+    selectOnScroll() {
+      this.onScroll()
+    },
     clearDefault(optionList) {
       const emptyOption = !optionList?.length
 
