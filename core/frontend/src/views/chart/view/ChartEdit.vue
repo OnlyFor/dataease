@@ -1183,8 +1183,10 @@
                             :item="item"
                             :dimension-data="dimension"
                             :quota-data="quota"
+                            :chart="chart"
                             @onDimensionItemChange="drillItemChange"
                             @onDimensionItemRemove="drillItemRemove"
+                            @onCustomSort="item => onCustomSort(item, 'drillFields')"
                           />
                         </transition-group>
                       </draggable>
@@ -2438,6 +2440,7 @@ export default {
       bus.$on('plugin-chart-click', this.chartClick)
       bus.$on('set-dynamic-area-code', this.setDynamicAreaCode)
       bus.$on('set-table-column-width', this.onTableFieldWidthChange)
+      bus.$on('show-custom-sort', this.customSort)
     },
     initTableData(id, optType) {
       if (id != null) {
@@ -2930,6 +2933,10 @@ export default {
     onMove(e, originalEvent) {
       this.moveId = e.draggedContext.element.id
       return true
+    },
+    customSort(args) {
+      const { item, axis } = JSON.parse(JSON.stringify(args))
+      this.onCustomSort(item, axis)
     },
     onCustomSort(item, axis) {
       this.customSortFieldType = axis

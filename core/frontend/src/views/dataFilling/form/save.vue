@@ -2,6 +2,7 @@
 import { filter, forEach, find, split, get } from 'lodash-es'
 import { listDatasource, listDatasourceType } from '@/api/system/datasource'
 import { listForm, saveForm } from '@/views/dataFilling/form/dataFilling'
+import { hasDataPermission } from '@/utils/permission'
 
 export default {
   name: 'DataFillingFormSave',
@@ -160,7 +161,7 @@ export default {
 
       this.allDatasourceList = val[1].data
 
-      this.folders = val[2].data || []
+      this.folders = this.filterListDeep(val[2].data) || []
       if (this.formData.folder) {
         this.$nextTick(() => {
           this.$refs.tree.setCurrentKey(this.formData.folder)
@@ -172,6 +173,14 @@ export default {
     })
   },
   methods: {
+    filterListDeep(list) {
+      return filter(list, item => {
+        if (item.children) {
+          this.filterListDeep(item.children)
+        }
+        return hasDataPermission('manage', item.privileges)
+      })
+    },
     getTypeOptions(formOption) {
       const _options = []
       if (formOption.type !== 'date' &&
@@ -309,6 +318,7 @@ export default {
         :model="formData"
         label-position="top"
         hide-required-asterisk
+        @submit.native.prevent
       >
         <el-form-item
           prop="name"
@@ -597,9 +607,27 @@ export default {
             </template>
           </el-table-column>
 
-          <el-table-column
-            :label="$t('data_fill.form.index_column')"
-          >
+          <el-table-column>
+            <template
+              slot="header"
+              slot-scope="scope"
+            >
+              {{ $t('data_fill.form.index_column') }}
+              <el-tooltip
+                class="item"
+                effect="dark"
+                placement="bottom"
+              >
+                <div
+                  slot="content"
+                  v-html="$t('data_fill.form.create_index_hint')"
+                />
+                <i
+                  class="el-icon-info"
+                  style="cursor: pointer;"
+                />
+              </el-tooltip>
+            </template>
             <template slot-scope="scope">
               <div
                 v-for="(indexRow, $index) in scope.row.columns"
@@ -664,6 +692,7 @@ export default {
                 </div>
               </div>
               <el-button
+                v-if="scope.row.columns.length < 5"
                 type="text"
                 @click="addColumn(scope.row.columns)"
               >+ {{ $t('data_fill.form.add_column') }}

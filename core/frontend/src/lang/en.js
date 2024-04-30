@@ -662,6 +662,7 @@ export default {
       create_index: 'Create Index',
       add_index: 'Add Index',
       index_name: 'Index Name',
+      create_index_hint: 'MySQL versions earlier than 8.0 or MariaDB versions earlier than 10.8.0 do not support Descending indexes',
       index_column: 'Index Column',
       order_asc: 'Asc',
       order_desc: 'Desc',
@@ -1081,6 +1082,7 @@ export default {
     message_retention_time: 'Message retention time',
     log_retention_time: 'Log retention time',
     ds_sync_log_retention_time: 'Data sync log retention time',
+    export_file_retention_time: 'Export file retention time',
     ds_check_time: 'Data source detection interval',
     test_mail_recipient: 'Used only as a test mail recipient',
     to_enable_tsl: 'If the SMTP port is 587, you usually need to enable TSL',
@@ -3227,7 +3229,14 @@ export default {
     export_failed: 'Export failed',
     export_from: 'Export source',
     export_obj: 'Export object',
-    export_time: 'Export time'
+    export_time: 'Export time',
+    sure_del_all: 'Are you sure you want to delete all export records？',
+    sure_del: 'Are you sure you want to delete this export record？',
+    no_failed_file: 'No failed files',
+    no_file: 'No files available',
+    no_task: 'No tasks available',
+    download_all: 'Download All',
+    download: 'Download'
   },
   link_ticket: {
     require: 'Require',

@@ -1,7 +1,8 @@
 package io.dataease.service.exportCenter;
 
-
 import com.google.gson.Gson;
+import io.dataease.auth.api.dto.CurrentUserDto;
+import io.dataease.commons.constants.ParamConstants;
 import io.dataease.commons.constants.SysLogConstants;
 import io.dataease.commons.utils.*;
 import io.dataease.controller.request.chart.ChartExtRequest;
@@ -38,6 +39,7 @@ import io.dataease.service.dataset.*;
 import io.dataease.service.datasource.DatasourceService;
 import io.dataease.service.engine.EngineService;
 import io.dataease.service.panel.PanelGroupService;
+import io.dataease.service.system.SystemParameterService;
 import io.dataease.websocket.entity.WsMessage;
 import io.dataease.websocket.service.WsService;
 import org.apache.commons.collections4.CollectionUtils;
@@ -49,7 +51,7 @@ import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.shiro.SecurityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -72,6 +74,8 @@ import java.util.stream.Collectors;
 @Service
 public class ExportCenterService {
 
+    @Resource
+    private SystemParameterService systemParameterService;
     @Resource
     private ChartViewMapper chartViewMapper;
     @Resource
@@ -360,7 +364,8 @@ public class ExportCenterService {
     public void addTask(String exportFrom, String exportFromType, PanelViewDetailsRequest request) {
         ExportTask exportTask = new ExportTask();
         exportTask.setId(UUID.randomUUID().toString());
-        exportTask.setUserId(AuthUtils.getUser().getUserId());
+        CurrentUserDto u = (CurrentUserDto) SecurityUtils.getSubject().getPrincipal();
+        exportTask.setUserId(u.getUserId());
         exportTask.setExportFrom(exportFrom);
         exportTask.setExportFromType(exportFromType);
         exportTask.setExportStatus("PENDING");
@@ -374,6 +379,7 @@ public class ExportCenterService {
     }
 
     private void startViewTask(ExportTask exportTask, PanelViewDetailsRequest request) {
+
         String dataPath = exportData_path + exportTask.getId();
         File directory = new File(dataPath);
         boolean isCreated = directory.mkdir();
@@ -381,7 +387,6 @@ public class ExportCenterService {
             try {
                 exportTask.setExportStatus("IN_PROGRESS");
                 exportTaskMapper.updateByPrimaryKey(exportTask);
-
                 findExcelData(request);
                 String snapshot = request.getSnapshot();
                 List<Object[]> details = request.getDetails();
@@ -655,99 +660,102 @@ public class ExportCenterService {
                     wb.close();
                 } else {
                     Integer totalPage = (totalCount / extractPageSize) + (totalCount % extractPageSize > 0 ? 1 : 0);
-                    List<List<String>> details = new ArrayList<>();
                     List<DatasetTableField> fields = new ArrayList<>();
+                    Workbook wb = new SXSSFWorkbook();
+                    FileOutputStream fileOutputStream = new FileOutputStream(dataPath + "/" + request.getFilename() + ".xlsx");
+                    Sheet detailsSheet = wb.createSheet("数据");
                     for (Integer p = 1; p < totalPage + 1; p++) {
-                        Integer offset = p * extractPageSize;
-                        Integer all = offset + extractPageSize;
-                        Map<String, Object> previewData = getPreviewData(request, p, extractPageSize, all, null, tree);
-                        Workbook wb = null;
-                        Sheet detailsSheet = null;
-                        CellStyle cellStyle = null;
-                        FileInputStream fis = null;
+                        Map<String, Object> previewData = getPreviewData(request, p, extractPageSize, extractPageSize, null, tree);
+                        List<Map<String, Object>> data = (List<Map<String, Object>>) previewData.get("data");
                         if (p == 1L) {
-                            wb = new SXSSFWorkbook();
-                            // Sheet
-                            detailsSheet = wb.createSheet("数据");
-                            //给单元格设置样式
-                            cellStyle = wb.createCellStyle();
+                            CellStyle cellStyle = wb.createCellStyle();
                             Font font = wb.createFont();
-                            //设置字体大小
                             font.setFontHeightInPoints((short) 12);
-                            //设置字体加粗
                             font.setBold(true);
-                            //给字体设置样式
                             cellStyle.setFont(font);
-                            //设置单元格背景颜色
                             cellStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
-                            //设置单元格填充样式(使用纯色背景颜色填充)
                             cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
                             fields = (List<DatasetTableField>) previewData.get("fields");
                             List<String> header = new ArrayList<>();
                             for (DatasetTableField field : fields) {
                                 header.add(field.getName());
                             }
+                            List<List<String>> details = new ArrayList<>();
                             details.add(header);
-                        } else {
-                            fis = new FileInputStream(dataPath + "/" + request.getFilename() + ".xlsx");
-                            wb = new XSSFWorkbook(fis); // 假设这是个.xlsx格式的文件
-                            detailsSheet = wb.getSheetAt(0);
-                        }
-
-                        List<Map<String, Object>> data = (List<Map<String, Object>>) previewData.get("data");
-                        for (Map<String, Object> obj : data) {
-                            List<String> row = new ArrayList<>();
-                            for (DatasetTableField field : fields) {
-                                String string = (String) obj.get(field.getDataeaseName());
-                                row.add(string);
+                            for (Map<String, Object> obj : data) {
+                                List<String> row = new ArrayList<>();
+                                for (DatasetTableField field : fields) {
+                                    String string = (String) obj.get(field.getDataeaseName());
+                                    row.add(string);
+                                }
+                                details.add(row);
                             }
-                            details.add(row);
-                        }
-
-
-                        if (CollectionUtils.isNotEmpty(details)) {
-                            for (int i = 0; i < details.size(); i++) {
-                                Row row = detailsSheet.createRow(i);
-                                List<String> rowData = details.get(i);
-                                if (rowData != null) {
-                                    for (int j = 0; j < rowData.size(); j++) {
-                                        Cell cell = row.createCell(j);
-                                        if (i == 0) {// 头部
-                                            cell.setCellValue(rowData.get(j));
-                                            cell.setCellStyle(cellStyle);
-                                            //设置列的宽度
-                                            detailsSheet.setColumnWidth(j, 255 * 20);
-                                        } else {
-                                            if ((fields.get(j).getDeType().equals(DeTypeConstants.DE_INT) || fields.get(j).getDeType() == DeTypeConstants.DE_FLOAT) && StringUtils.isNotEmpty(rowData.get(j))) {
-                                                try {
-                                                    cell.setCellValue(Double.valueOf(rowData.get(j)));
-                                                } catch (Exception e) {
-                                                    LogUtil.warn("export excel data transform error");
-                                                }
-                                            } else {
+                            if (CollectionUtils.isNotEmpty(details)) {
+                                for (int i = 0; i < details.size(); i++) {
+                                    Row row = detailsSheet.createRow(i);
+                                    List<String> rowData = details.get(i);
+                                    if (rowData != null) {
+                                        for (int j = 0; j < rowData.size(); j++) {
+                                            Cell cell = row.createCell(j);
+                                            if (i == 0) {
                                                 cell.setCellValue(rowData.get(j));
+                                                cell.setCellStyle(cellStyle);
+                                                detailsSheet.setColumnWidth(j, 255 * 20);
+                                            } else {
+                                                if ((fields.get(j).getDeType().equals(DeTypeConstants.DE_INT) || fields.get(j).getDeType() == DeTypeConstants.DE_FLOAT) && StringUtils.isNotEmpty(rowData.get(j))) {
+                                                    try {
+                                                        cell.setCellValue(Double.valueOf(rowData.get(j)));
+                                                    } catch (Exception e) {
+                                                        LogUtil.warn("export excel data transform error");
+                                                    }
+                                                } else {
+                                                    cell.setCellValue(rowData.get(j));
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
-                        }
-                        if (p == 1) {
-                            try (FileOutputStream outputStream = new FileOutputStream(dataPath + "/" + request.getFilename() + ".xlsx")) {
-                                wb.write(outputStream);
-                            }
-                            wb.close();
                         } else {
-                            fis.close();
-                            wb.close();
+                            List<List<String>> details = new ArrayList<>();
+                            for (Map<String, Object> obj : data) {
+                                List<String> row = new ArrayList<>();
+                                for (DatasetTableField field : fields) {
+                                    String string = (String) obj.get(field.getDataeaseName());
+                                    row.add(string);
+                                }
+                                details.add(row);
+                            }
+                            int lastNum = detailsSheet.getLastRowNum();
+                            for (int i = 0; i < details.size(); i++) {
+                                Row row = detailsSheet.createRow(i + lastNum + 1);
+                                List<String> rowData = details.get(i);
+                                if (rowData != null) {
+                                    for (int j = 0; j < rowData.size(); j++) {
+                                        Cell cell = row.createCell(j);
+                                        if ((fields.get(j).getDeType().equals(DeTypeConstants.DE_INT) || fields.get(j).getDeType() == DeTypeConstants.DE_FLOAT) && StringUtils.isNotEmpty(rowData.get(j))) {
+                                            try {
+                                                cell.setCellValue(Double.valueOf(rowData.get(j)));
+                                            } catch (Exception e) {
+                                                LogUtil.warn("export excel data transform error");
+                                            }
+                                        } else {
+                                            cell.setCellValue(rowData.get(j));
+                                        }
+                                    }
+                                }
+                            }
                         }
                         exportTask.setExportStatus("IN_PROGRESS");
-                        double exportRogress = (double) ((double) p / (double) totalCount);
+                        double exportRogress = (double) ((double) p / (double) totalPage);
                         DecimalFormat df = new DecimalFormat("#.##");
                         String formattedResult = df.format(exportRogress * 100);
                         exportTask.setExportPogress(formattedResult);
                         exportTaskMapper.updateByPrimaryKey(exportTask);
                     }
+                    wb.write(fileOutputStream);
+                    fileOutputStream.close();
+                    wb.close();
                 }
                 exportTask.setExportPogress("100");
                 exportTask.setExportStatus("SUCCESS");
@@ -1099,7 +1107,6 @@ public class ExportCenterService {
                 String table = dataTableInfoDTO.getTable();
                 QueryProvider qp = ProviderFactory.getQueryProvider(ds.getType());
                 datasourceRequest.setQuery(qp.createQueryTableWithPage(table, fields, page, pageSize, realSize, false, ds, null, rowPermissionsTree));
-
                 try {
 
                     data.addAll(datasourceProvider.getData(datasourceRequest));
@@ -1327,7 +1334,27 @@ public class ExportCenterService {
         map.put("data", jsonArray);
         return map;
     }
+    private static final String LOG_RETENTION = "30";
 
+    public void cleanLog() {
+        String value = systemParameterService.getValue(ParamConstants.BASIC.EXPORT_FILE_TIME_OUT.getValue());
+        value = StringUtils.isBlank(value) ? LOG_RETENTION : value;
+        int logRetention = Integer.parseInt(value);
+        Calendar instance = Calendar.getInstance();
+        Calendar startInstance = (Calendar) instance.clone();
+        startInstance.add(Calendar.DATE, -logRetention);
+        startInstance.set(Calendar.HOUR_OF_DAY, 0);
+        startInstance.set(Calendar.MINUTE, 0);
+        startInstance.set(Calendar.SECOND, 0);
+        startInstance.set(Calendar.MILLISECOND, -1);
+        long timeInMillis = startInstance.getTimeInMillis();
+        ExportTaskExample exportTaskExample = new ExportTaskExample();
+        ExportTaskExample.Criteria criteria = exportTaskExample.createCriteria();
+        criteria.andExportTimeLessThan(timeInMillis);
+        exportTaskMapper.selectByExample(exportTaskExample).forEach(exportTask -> {
+            delete(exportTask.getId());
+        });
+    }
 
 }
 

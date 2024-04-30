@@ -90,7 +90,7 @@
         name="record"
       />
       <el-tab-pane
-        v-if="hasDataPermission('grant', param.privileges)"
+        v-if="hasDataPermission('manage', param.privileges)"
         :label="$t('data_fill.form.task_manage')"
         :lazy="true"
         name="task"
@@ -105,8 +105,12 @@
     >
 
       <template>
-        <div style="margin-bottom: 12px; height: 32px; display: flex; flex-direction: row;">
+        <div
+          v-if="hasDataPermission('write', param.privileges)"
+          style="margin-bottom: 12px; height: 32px; display: flex; flex-direction: row;"
+        >
           <el-button
+            v-if="hasDataPermission('write', param.privileges)"
             icon="el-icon-plus"
             size="small"
             @click="addData"
