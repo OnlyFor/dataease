@@ -667,9 +667,7 @@ const init = (queryId: string) => {
         .forEach(ele => {
           const { dimensionList, quotaList } = ele.fields
           ele.list = [...dimensionList, ...quotaList]
-          if (!datasetMap[ele.id]) {
-            datasetMap[ele.id] = ele
-          }
+          datasetMap[ele.id] = ele
         })
       fields.value = datasetFieldList.value
         .map(ele => {
@@ -742,11 +740,14 @@ const handleCondition = item => {
   handleDialogClick()
   if (activeConditionForRename.id) return
   activeCondition.value = item.id
-  curComponent.value = conditions.value.find(ele => ele.id === item.id)
+  curComponent.value = cloneDeep(conditions.value.find(ele => ele.id === item.id))
+  curComponent.value.dataset.fields = []
 
   multiple.value = curComponent.value.multiple
-  if (!curComponent.value.dataset.fields.length && curComponent.value.dataset.id) {
-    getOptions(curComponent.value.dataset.id, curComponent.value)
+  if (curComponent.value.dataset.id) {
+    listFieldsWithPermissions(curComponent.value.dataset.id).then(res => {
+      curComponent.value.dataset.fields = res.data
+    })
   }
   datasetFieldList.value.forEach(ele => {
     if (!curComponent.value.checkedFieldsMap[ele.id]) {
@@ -1348,9 +1349,11 @@ defineExpose({
                   </el-tree-select>
                 </div>
                 <div class="value">
+                  <span class="label">查询字段</span>
                   <el-select
                     @change="handleFieldChange"
                     placeholder="查询字段"
+                    class="search-field"
                     v-model="curComponent.field.id"
                   >
                     <template v-if="curComponent.field.id" #prefix>
@@ -1394,7 +1397,12 @@ defineExpose({
                   </el-select>
                 </div>
                 <div class="value">
-                  <el-select placeholder="显示字段" v-model="curComponent.displayId">
+                  <span class="label">显示字段</span>
+                  <el-select
+                    placeholder="显示字段"
+                    class="search-field"
+                    v-model="curComponent.displayId"
+                  >
                     <template v-if="curComponent.displayId" #prefix>
                       <el-icon>
                         <Icon
@@ -1440,6 +1448,7 @@ defineExpose({
                   </el-select>
                 </div>
                 <div class="value">
+                  <span class="label">排序字段</span>
                   <el-select
                     clearable
                     placeholder="请选择排序字段"
@@ -1710,6 +1719,9 @@ defineExpose({
                   popper-class="dataset-parameters"
                   value-key="id"
                   multiple
+                  collapse-tags
+                  collapse-tags-tooltip
+                  :max-collapse-tags="3"
                   @focus="handleDialogClick"
                   v-model="curComponent.parameters"
                   clearable
@@ -2223,15 +2235,28 @@ defineExpose({
           }
 
           .value {
+            .ed-select {
+              width: 321px;
+            }
             width: 321px;
             .value {
               margin-top: 8px;
               &:first-child {
                 margin-top: -0.5px;
               }
-            }
-            .ed-select {
-              width: 321px;
+              .search-field {
+                width: 257px;
+              }
+
+              .sort-field {
+                width: 176px;
+              }
+
+              .label {
+                line-height: 32px;
+                font-size: 14px;
+                margin-right: 8px;
+              }
             }
           }
 
