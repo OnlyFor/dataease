@@ -14,8 +14,8 @@ import io.dataease.exportCenter.dao.auto.entity.CoreExportTask;
 import io.dataease.exportCenter.dao.auto.mapper.CoreExportTaskMapper;
 import io.dataease.utils.*;
 import io.dataease.visualization.server.DataVisualizationServer;
-import io.dataease.websocket.entity.WsMessage;
-import io.dataease.websocket.service.WsService;
+import io.dataease.websocket.WsMessage;
+import io.dataease.websocket.WsService;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
@@ -160,7 +160,7 @@ public class ExportCenterManage {
         exportTaskMapper.updateById(exportTask);
         FileUtils.deleteDirectoryRecursively(exportData_path + id);
         if (exportTask.getExportFromType().equalsIgnoreCase("chart")) {
-            ChartExcelRequest request = JsonUtil.parse(exportTask.getParams(), ChartExcelRequest.class);
+            ChartExcelRequest request = JsonUtil.parseObject(exportTask.getParams(), ChartExcelRequest.class);
             startViewTask(exportTask, request);
         }
     }
