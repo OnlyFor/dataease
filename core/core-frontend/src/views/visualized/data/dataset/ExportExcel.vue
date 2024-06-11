@@ -54,7 +54,7 @@ const handleClose = () => {
 onUnmounted(() => {
   clearInterval(timer)
 })
-const handleClick = tab => {
+const handleClick = (tab?) => {
   if (tab) {
     activeName.value = tab.paneName
   }

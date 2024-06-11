@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { dvMainStoreWithOut } from '@/store/modules/data-visualization/dvMain'
-import { onMounted, reactive } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import DePreview from '@/components/data-visualization/canvas/DePreview.vue'
 import router from '@/router'
 import { initCanvasData } from '@/utils/canvasUtils'
 import { queryTargetVisualizationJumpInfo } from '@/api/visualization/linkJump'
 import { Base64 } from 'js-base64'
+import ExportExcel from '@/views/visualized/data/dataset/ExportExcel.vue'
+import { useEmitt } from '@/hooks/web/useEmitt'
 import { getOuterParamsInfo } from '@/api/visualization/outerParams'
 import { ElMessage } from 'element-plus-secondary'
 import { useEmbedded } from '@/store/modules/embedded'
@@ -101,11 +103,18 @@ const loadCanvasDataAsync = async (dvId, dvType) => {
     }
   )
 }
-
+const ExportExcelRef = ref()
+const downloadClick = () => {
+  ExportExcelRef.value.init()
+}
 let p = null
 const XpackLoaded = () => p(true)
 onMounted(async () => {
   await new Promise(r => (p = r))
+  useEmitt({
+    name: 'data-export-center',
+    callback: downloadClick
+  })
   const dvId = embeddedStore.dvId || router.currentRoute.value.query.dvId
   const { dvType, callBackFlag } = router.currentRoute.value.query
   if (dvId) {
@@ -134,6 +143,7 @@ defineExpose({
       :is-selector="props.isSelector"
     ></de-preview>
   </div>
+  <ExportExcel ref="ExportExcelRef"></ExportExcel>
   <XpackComponent
     jsname="L2NvbXBvbmVudC9lbWJlZGRlZC1pZnJhbWUvTmV3V2luZG93SGFuZGxlcg=="
     @loaded="XpackLoaded"
