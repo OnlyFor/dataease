@@ -47,46 +47,7 @@ export class Bar extends G2PlotChartView<ColumnOptions, Column> {
     yField: 'value',
     seriesField: 'category',
     isGroup: true,
-    data: [],
-    interactions: [
-      {
-        type: 'legend-active',
-        cfg: {
-          start: [{ trigger: 'legend-item:mouseenter', action: ['element-active:reset'] }],
-          end: [{ trigger: 'legend-item:mouseleave', action: ['element-active:reset'] }]
-        }
-      },
-      {
-        type: 'legend-filter',
-        cfg: {
-          start: [
-            {
-              trigger: 'legend-item:click',
-              action: [
-                'list-unchecked:toggle',
-                'data-filter:filter',
-                'element-active:reset',
-                'element-highlight:reset'
-              ]
-            }
-          ]
-        }
-      },
-      {
-        type: 'tooltip',
-        cfg: {
-          start: [{ trigger: 'interval:mousemove', action: 'tooltip:show' }],
-          end: [{ trigger: 'interval:mouseleave', action: 'tooltip:hide' }]
-        }
-      },
-      {
-        type: 'active-region',
-        cfg: {
-          start: [{ trigger: 'interval:mousemove', action: 'active-region:show' }],
-          end: [{ trigger: 'interval:mouseleave', action: 'active-region:hide' }]
-        }
-      }
-    ]
+    data: []
   }
 
   axis: AxisType[] = [...BAR_AXIS_TYPE]
@@ -412,7 +373,12 @@ export class StackBar extends Bar {
     this.baseOptions = {
       ...this.baseOptions,
       isStack: true,
-      isGroup: false
+      isGroup: false,
+      meta: {
+        category: {
+          type: 'cat'
+        }
+      }
     }
     this.axis = [...this.axis, 'extStack']
   }
@@ -668,7 +634,12 @@ export class PercentageStackBar extends GroupStackBar {
       isStack: true,
       isPercent: true,
       isGroup: false,
-      groupField: undefined
+      groupField: undefined,
+      meta: {
+        category: {
+          type: 'cat'
+        }
+      }
     }
     this.axis = [...BAR_AXIS_TYPE, 'extStack']
   }
